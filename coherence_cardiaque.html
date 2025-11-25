@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zen Flight - Compact Edition</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&display=swap');
+
+        :root {
+            --c-bg: #0f172a;       
+            --c-widget: #1e293b;    
+            --c-yellow: #fafa24;   
+            --c-orange: #f9c30e;   
+            --c-blue-dark: #001f89; 
+            --c-text: #f8fafc;
+        }
+
+        * { box-sizing: border-box; user-select: none; }
+
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: var(--c-bg);
+            font-family: 'Manrope', sans-serif;
+            color: var(--c-text);
+            overflow: hidden; /* Empêche le scroll global */
+        }
+
+        /* --- LE WIDGET (Card) --- */
+        .widget {
+            /* Largeur : Max 420px, ou 90% sur mobile */
+            width: 90%; 
+            max-width: 420px;
+            
+            /* Hauteur : S'adapte à l'écran, Max 650px */
+            height: 85vh; 
+            max-height: 650px;
+            min-height: 480px; /* Pas trop petit non plus */
+
+            background: linear-gradient(180deg, var(--c-blue-dark) 0%, #0b1120 100%);
+            border-radius: 24px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+            overflow: hidden; /* Coupe tout ce qui dépasse */
+        }
+
+        /* Décoration fond */
+        .bg-orb {
+            position: absolute;
+            top: -100px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(249, 195, 14, 0.15) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Bouton Quitter (Absolu en haut à droite) */
+        .btn-quit {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            z-index: 50;
+            font-weight: bold;
+            display: none; /* Masqué par défaut */
+        }
+        .btn-quit:hover { background: rgba(255,255,255,0.2); }
+
+        /* --- HEADER (Compact) --- */
+        .header {
+            padding: 20px 0 10px;
+            text-align: center;
+            z-index: 10;
+            flex-shrink: 0; /* Ne rétrécit pas */
+        }
+        
+        .header h2 {
+            margin: 0;
+            font-size: 18px;
+            color: var(--c-yellow);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .header p {
+            margin: 4px 0 0;
+            font-size: 12px;
+            opacity: 0.7;
+        }
+
+        /* --- ZONE CONTENU (Flexible) --- */
+        .stage {
+            flex: 1; /* Prend toute la hauteur disponible */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center; /* Centre verticalement */
+            /* Gap dynamique : espace entre les éléments */
+            gap: clamp(10px, 3vh, 30px); 
+            position: relative;
+            z-index: 10;
+            padding: 0 20px;
+        }
+
+        /* --- SETUP LAYER (Overlay) --- */
+        .setup-layer {
+            position: absolute;
+            inset: 0; /* Prend tout l'espace du parent */
+            background: rgba(0, 31, 137, 0.85);
+            backdrop-filter: blur(8px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 20;
+            transition: opacity 0.4s ease;
+            text-align: center;
+            padding: 30px;
+        }
+        .setup-layer.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .setup-layer h3 { font-size: 22px; margin-bottom: 10px; color: white; }
+        .setup-layer p { font-size: 14px; line-height: 1.5; color: #cbd5e1; margin-bottom: 30px; }
+
+        .btn-start {
+            background: linear-gradient(90deg, var(--c-orange), var(--c-yellow));
+            color: var(--c-blue-dark);
+            padding: 12px 35px;
+            border-radius: 50px;
+            border: none;
+            font-size: 16px;
+            font-weight: 800;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(250, 250, 36, 0.3);
+            transition: transform 0.2s;
+        }
+        .btn-start:hover { transform: scale(1.05); }
+
+        /* --- ELEMENTS ACTIFS --- */
+
+        /* 1. CERCLE (Taille responsive avec clamp) */
+        .breath-circle {
+            /* Taille entre 120px et 160px selon hauteur d'écran */
+            width: clamp(120px, 20vh, 160px);
+            height: clamp(120px, 20vh, 160px);
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transform: scale(1);
+            /* Important: will-change pour performance fluide */
+            will-change: transform;
+        }
+        
+        .core-dot {
+            width: 10px;
+            height: 10px;
+            background: white;
+            border-radius: 50%;
+            box-shadow: 0 0 15px white;
+        }
+
+        /* 2. TEXTE */
+        .instruction {
+            font-size: 28px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            height: 40px; /* Hauteur fixe pour éviter sauts */
+            display: flex;
+            align-items: center;
+        }
+
+        /* 3. JAUGE POINTS */
+        .dots-gauge {
+            display: flex;
+            gap: 10px;
+            padding: 8px 16px;
+            background: rgba(0,0,0,0.25);
+            border-radius: 30px;
+        }
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            transition: all 0.2s ease;
+        }
+        .dot.active {
+            background: var(--c-yellow);
+            box-shadow: 0 0 8px var(--c-yellow);
+            transform: scale(1.2);
+        }
+
+        /* 4. SOUS-TEXTE */
+        .sub-text {
+            font-size: 13px;
+            color: #94a3b8;
+            font-style: italic;
+            text-align: center;
+            min-height: 20px;
+            margin-bottom: 10px;
+        }
+
+        /* --- FOOTER --- */
+        .footer {
+            padding: 0 20px 20px;
+            flex-shrink: 0;
+        }
+        .progress-track {
+            width: 100%;
+            height: 4px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--c-orange);
+            transition: width 1s linear;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="widget">
+        <div class="bg-orb"></div>
+        <button class="btn-quit" id="btnQuit" onclick="stop()">✕</button>
+
+        <div class="header">
+            <h2>Mode Calme</h2>
+            <p>3 Minutes pour s'apaiser</p>
+        </div>
+
+        <div class="stage">
+            
+            <div class="setup-layer" id="setupLayer">
+                <h3>Prêt ?</h3>
+                <p>Suivez la lumière.<br>Elle monte, inspirez.<br>Elle descend, soufflez.</p>
+                <button class="btn-start" onclick="start()">LANCER</button>
+            </div>
+
+            <div class="breath-circle" id="circle">
+                <div class="core-dot"></div>
+            </div>
+
+            <div class="instruction" id="instruction">PRÊT</div>
+
+            <div class="dots-gauge">
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+            </div>
+
+            <div class="sub-text" id="subMessage">Jauge pleine = Poumons pleins</div>
+        </div>
+
+        <div class="footer">
+            <div class="progress-track">
+                <div class="progress-fill" id="progressBar"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- CONFIGURATION ---
+        const DURATION = 3 * 60; // 3 min
+        let isRunning = false;
+        let startTime = 0;
+        let animId;
+
+        // --- DOM ---
+        const setupLayer = document.getElementById('setupLayer');
+        const btnQuit = document.getElementById('btnQuit');
+        const circle = document.getElementById('circle');
+        const instruction = document.getElementById('instruction');
+        const dots = document.querySelectorAll('.dot');
+        const progressBar = document.getElementById('progressBar');
+        const subMessage = document.getElementById('subMessage');
+
+        const phrases = [
+            "Jauge pleine = Poumons pleins",
+            "Relâchez vos épaules...",
+            "Juste la lumière...",
+            "C'est très bien...",
+            "Encore un peu..."
+        ];
+
+        function start() {
+            setupLayer.classList.add('hidden');
+            btnQuit.style.display = 'block';
+            isRunning = true;
+            startTime = performance.now();
+            loop();
+        }
+
+        function stop() {
+            isRunning = false;
+            cancelAnimationFrame(animId);
+            setupLayer.classList.remove('hidden');
+            btnQuit.style.display = 'none';
+            reset();
+        }
+
+        function loop(now) {
+            if(!isRunning) return;
+            if(!startTime) startTime = now;
+
+            const elapsed = (now - startTime) / 1000;
+
+            if (elapsed >= DURATION) {
+                end();
+                return;
+            }
+
+            // Progression Globale
+            const pct = (elapsed / DURATION) * 100;
+            progressBar.style.width = `${pct}%`;
+
+            // Message ambiance
+            const msgIndex = Math.floor(elapsed / 25) % phrases.length;
+            if(elapsed > 2) subMessage.innerText = phrases[msgIndex];
+
+            // Cycle 10s (5 In / 5 Out)
+            const cycle = elapsed % 10;
+            let activeDots = 0;
+
+            if (cycle < 5) {
+                // INSPIRE
+                instruction.innerText = "INSPIREZ";
+                instruction.style.color = "var(--c-yellow)";
+                
+                // Scale 1 -> 2
+                const scale = 1 + (cycle/5);
+                circle.style.transform = `scale(${scale})`;
+                circle.style.backgroundColor = "rgba(250,250,36,0.1)";
+                circle.style.borderColor = "var(--c-yellow)";
+
+                // Dots 1 -> 5
+                activeDots = Math.floor(cycle) + 1;
+                updateDots(activeDots);
+
+            } else {
+                // SOUFFLE
+                instruction.innerText = "SOUFFLEZ";
+                instruction.style.color = "white";
+
+                // Scale 2 -> 1
+                const exhaleT = cycle - 5;
+                const scale = 2 - (exhaleT/5);
+                circle.style.transform = `scale(${scale})`;
+                circle.style.backgroundColor = "transparent";
+                circle.style.borderColor = "rgba(255,255,255,0.15)";
+
+                // Dots 5 -> 1
+                activeDots = 5 - Math.floor(exhaleT);
+                updateDots(activeDots);
+            }
+
+            animId = requestAnimationFrame(loop);
+        }
+
+        function updateDots(count) {
+            dots.forEach((dot, idx) => {
+                if (idx < count) dot.classList.add('active');
+                else dot.classList.remove('active');
+            });
+        }
+
+        function end() {
+            instruction.innerText = "TERMINÉ";
+            circle.style.transform = "scale(1)";
+            updateDots(0);
+            subMessage.innerText = "Bravo.";
+            setTimeout(stop, 3000);
+        }
+
+        function reset() {
+            circle.style.transform = "scale(1)";
+            circle.style.backgroundColor = "transparent";
+            circle.style.borderColor = "rgba(255,255,255,0.1)";
+            progressBar.style.width = '0%';
+            instruction.innerText = "PRÊT";
+            subMessage.innerText = "Jauge pleine = Poumons pleins";
+            updateDots(0);
+        }
+    </script>
+</body>
+</html>
